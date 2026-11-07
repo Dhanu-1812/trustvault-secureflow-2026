@@ -24,7 +24,8 @@ function App() {
   const [revokeEmail, setRevokeEmail] = useState("");
   const [revokeDocumentId, setRevokeDocumentId] = useState("");
   const [revokeStatus, setRevokeStatus] = useState("");
-
+const [auditStatus, setAuditStatus] = useState("");
+const [auditResult, setAuditResult] = useState(null);
   useEffect(() => {
     const restoreSession = async () => {
       const token = localStorage.getItem("token");
@@ -184,7 +185,20 @@ function App() {
       setRevokeStatus(error.message);
     }
   };
+const handleVerifyAudit = async () => {
+  try {
+    setAuditStatus("");
+    setAuditResult(null);
 
+    const data = await apiRequest("/api/audit/verify");
+
+    setAuditResult(data);
+    setAuditStatus("Audit chain verified successfully");
+  } catch (error) {
+    setAuditStatus(error.message);
+    setAuditResult(null);
+  }
+};
   const handleDelete = async (doc) => {
     const confirmed = window.confirm(`Delete "${doc.name}"?`);
 
@@ -361,6 +375,32 @@ function App() {
           )}
 
           <form onSubmit={handleSearch}>
+            {user.role === "ADMIN" && (
+  <div>
+    <h3>Audit Verification</h3>
+
+    <button
+      type="button"
+      onClick={handleVerifyAudit}
+    >
+      Verify Audit Chain
+    </button>
+
+    {auditStatus && <p>{auditStatus}</p>}
+
+    {auditResult && (
+      <div>
+        <p>
+          Valid: {auditResult.valid ? "YES" : "NO"}
+        </p>
+
+        <p>
+          Total Events: {auditResult.totalEvents ?? 0}
+        </p>
+      </div>
+    )}
+  </div>
+)}
             <h3>Search Documents</h3>
 
             <input
