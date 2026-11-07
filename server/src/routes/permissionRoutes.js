@@ -8,16 +8,19 @@ const {
 } = require("../controllers/permissionController");
 
 const router = express.Router();
-
+const validateUuidParam = require("../middleware/validateUuid");
 router.post(
   "/:documentId/grant",
   authenticate,
+  validateUuidParam("documentId"),
   grantPermission
 );
 
 router.delete(
   "/:documentId/revoke/:userId",
   authenticate,
+  validateUuidParam("documentId"),
+  validateUuidParam("userId"),
   revokePermission
 );
 

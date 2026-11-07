@@ -75,7 +75,7 @@ test("viewer cannot grant access to owner's document", async () => {
 test("viewer cannot revoke another user's document permission", async () => {
   const response = await request(app)
     .delete(
-      `/api/permissions/${documentId}/revoke/00000000-0000-0000-0000-000000000001`
+      `/api/permissions/${documentId}/revoke/00000000-0000-4000-8000-000000000001`
     )
     .set("Authorization", `Bearer ${viewerToken}`);
 
