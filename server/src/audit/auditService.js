@@ -1,6 +1,52 @@
 const crypto = require("crypto");
 const pool = require("../config/db");
 
+// JSONB object key order database nundi return ayinappudu
+// change ayina hash break kakunda stable serialization.
+const stableSerialize = (value) => {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map(stableSerialize).join(",")}]`;
+  }
+
+  const keys = Object.keys(value).sort();
+
+  return `{${keys
+    .map(
+      (key) =>
+        `${JSON.stringify(key)}:${stableSerialize(value[key])}`
+    )
+    .join(",")}}`;
+};
+
+const buildEventHash = ({
+  actorUserId,
+  documentId,
+  action,
+  outcome,
+  metadata,
+  previousHash,
+  createdAt,
+}) => {
+  const payload = stableSerialize({
+    actorUserId,
+    documentId,
+    action,
+    outcome,
+    metadata: metadata || {},
+    previousHash,
+    createdAt,
+  });
+
+  return crypto
+    .createHash("sha256")
+    .update(payload)
+    .digest("hex");
+};
+
 const createAuditEvent = async ({
   actorUserId = null,
   documentId = null,
@@ -13,7 +59,6 @@ const createAuditEvent = async ({
   try {
     await client.query("BEGIN");
 
-    // Prevent two audit events from creating the same previous_hash.
     await client.query(
       "SELECT pg_advisory_xact_lock(785421)"
     );
@@ -21,7 +66,7 @@ const createAuditEvent = async ({
     const previousResult = await client.query(
       `SELECT event_hash
        FROM audit_events
-       ORDER BY created_at DESC, id DESC
+       ORDER BY chain_index DESC
        LIMIT 1`
     );
 
@@ -32,7 +77,7 @@ const createAuditEvent = async ({
 
     const createdAt = new Date().toISOString();
 
-    const eventPayload = JSON.stringify({
+    const eventHash = buildEventHash({
       actorUserId,
       documentId,
       action,
@@ -41,11 +86,6 @@ const createAuditEvent = async ({
       previousHash,
       createdAt,
     });
-
-    const eventHash = crypto
-      .createHash("sha256")
-      .update(eventPayload)
-      .digest("hex");
 
     const result = await client.query(
       `INSERT INTO audit_events
@@ -83,10 +123,12 @@ const createAuditEvent = async ({
     client.release();
   }
 };
+
 const verifyAuditChain = async () => {
   const result = await pool.query(
     `SELECT
        id,
+       chain_index,
        actor_user_id,
        document_id,
        action,
@@ -96,13 +138,13 @@ const verifyAuditChain = async () => {
        event_hash,
        created_at
      FROM audit_events
-     ORDER BY created_at ASC, id ASC`
+     ORDER BY chain_index ASC`
   );
 
   let previousHash = "GENESIS";
 
   for (const event of result.rows) {
-    const payload = JSON.stringify({
+    const expectedHash = buildEventHash({
       actorUserId: event.actor_user_id,
       documentId: event.document_id,
       action: event.action,
@@ -112,11 +154,6 @@ const verifyAuditChain = async () => {
       createdAt: new Date(event.created_at).toISOString(),
     });
 
-    const expectedHash = crypto
-      .createHash("sha256")
-      .update(payload)
-      .digest("hex");
-
     if (
       event.previous_hash !== previousHash ||
       event.event_hash !== expectedHash
@@ -124,6 +161,7 @@ const verifyAuditChain = async () => {
       return {
         valid: false,
         brokenEventId: event.id,
+        chainIndex: event.chain_index,
       };
     }
 
@@ -135,6 +173,7 @@ const verifyAuditChain = async () => {
     totalEvents: result.rows.length,
   };
 };
+
 module.exports = {
   createAuditEvent,
   verifyAuditChain,
