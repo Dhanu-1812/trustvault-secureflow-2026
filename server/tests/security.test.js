@@ -40,7 +40,14 @@ describe("TrustVault security tests", () => {
 
     documentId = documentsResponse.body.documents[0].id;
   });
+test("viewer cannot delete owner's document", async () => {
+  const response = await request(app)
+    .delete(`/api/documents/${documentId}`)
+    .set("Authorization", `Bearer ${viewerToken}`);
 
+  expect(response.statusCode).toBe(404);
+  expect(response.body.message).toBe("Document not found");
+});
   afterAll(async () => {
     await pool.end();
   });
