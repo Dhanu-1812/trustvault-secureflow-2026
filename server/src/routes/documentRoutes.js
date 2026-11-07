@@ -9,6 +9,7 @@ const {
   listDocuments,
   downloadDocument,
   searchDocuments,
+  deleteDocument,
 } = require("../controllers/documentController");
 
 const router = express.Router();
@@ -22,15 +23,27 @@ router.post(
 );
 
 router.get(
-  "/search",
+  "/",
   authenticate,
   listDocuments
+);
+
+router.get(
+  "/search",
+  authenticate,
+  searchDocuments
 );
 
 router.get(
   "/:documentId/download",
   authenticate,
   downloadDocument
+);
+
+router.delete(
+  "/:documentId",
+  authenticate,
+  deleteDocument
 );
 
 module.exports = router;

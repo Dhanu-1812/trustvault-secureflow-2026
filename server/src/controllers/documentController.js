@@ -206,9 +206,67 @@ const searchDocuments = async (req, res) => {
     });
   }
 };
+const deleteDocument = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { documentId } = req.params;
+
+    const authorization = await authorizeDocument(
+      userId,
+      documentId,
+      "EDIT"
+    );
+
+    if (
+      !authorization.allowed ||
+      authorization.document.owner_id !== userId
+    ) {
+      await createAuditEvent({
+        actorUserId: userId,
+        documentId: null,
+        action: "DOCUMENT_DELETE",
+        outcome: "DENIED",
+        metadata: {
+          attemptedDocumentId: documentId,
+          reason: "NOT_DOCUMENT_OWNER",
+        },
+      });
+
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
+    await pool.query(
+      `UPDATE documents
+       SET deleted_at = NOW()
+       WHERE id = $1`,
+      [documentId]
+    );
+
+    await createAuditEvent({
+      actorUserId: userId,
+      documentId,
+      action: "DOCUMENT_DELETE",
+      outcome: "SUCCESS",
+      metadata: {},
+    });
+
+    return res.json({
+      message: "Document deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete document error:", error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
 module.exports = {
   uploadDocument,
   listDocuments,
   downloadDocument,
   searchDocuments,
+  deleteDocument,
 };
