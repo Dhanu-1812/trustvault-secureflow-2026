@@ -21,7 +21,7 @@ router.post(
   upload.single("file"),
   uploadDocument
 );
-
+const validateUuidParam = require("../middleware/validateUuid");
 router.get(
   "/",
   authenticate,
@@ -37,6 +37,7 @@ router.get(
 router.get(
   "/:documentId/download",
   authenticate,
+  validateUuidParam("documentId"),
   downloadDocument
 );
 

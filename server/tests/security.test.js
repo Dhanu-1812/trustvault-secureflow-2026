@@ -88,6 +88,14 @@ test("viewer cannot access admin audit verification", async () => {
 
   expect(response.statusCode).toBe(403);
 });
+test("invalid document UUID does not cause server error", async () => {
+  const response = await request(app)
+    .get("/api/documents/not-a-valid-uuid/download")
+    .set("Authorization", `Bearer ${viewerToken}`);
+
+  expect(response.statusCode).toBe(404);
+  expect(response.body.message).toBe("Document not found");
+});
   afterAll(async () => {
     await pool.end();
   });
