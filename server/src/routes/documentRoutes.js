@@ -8,6 +8,7 @@ const {
   uploadDocument,
   listDocuments,
   downloadDocument,
+  searchDocuments,
 } = require("../controllers/documentController");
 
 const router = express.Router();
@@ -21,7 +22,7 @@ router.post(
 );
 
 router.get(
-  "/",
+  "/search",
   authenticate,
   listDocuments
 );
