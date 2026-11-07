@@ -48,6 +48,19 @@ test("viewer cannot delete owner's document", async () => {
   expect(response.statusCode).toBe(404);
   expect(response.body.message).toBe("Document not found");
 });
+test("revoked viewer cannot discover document through search", async () => {
+  const response = await request(app)
+    .get("/api/documents/search?q=")
+    .set("Authorization", `Bearer ${viewerToken}`);
+
+  expect(response.statusCode).toBe(200);
+
+  const leakedDocument = response.body.documents.find(
+    (document) => document.id === documentId
+  );
+
+  expect(leakedDocument).toBeUndefined();
+});
   afterAll(async () => {
     await pool.end();
   });
