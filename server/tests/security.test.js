@@ -1,8 +1,51 @@
 const request = require("supertest");
 const app = require("../src/app");
+const pool = require("../src/config/db");
 
 describe("TrustVault security tests", () => {
-  test("GET /api/auth/me should reject requests without a token", async () => {
+  let ownerToken;
+  let viewerToken;
+  let viewerId;
+  let documentId;
+
+  beforeAll(async () => {
+    const ownerLogin = await request(app)
+      .post("/api/auth/login")
+      .send({
+        email: "owner1@example.com",
+        password: "TestPass@123",
+      });
+
+    ownerToken = ownerLogin.body.token;
+
+    const viewerLogin = await request(app)
+      .post("/api/auth/login")
+      .send({
+        email: "viewer1@example.com",
+        password: "ViewerPass@123",
+      });
+
+    viewerToken = viewerLogin.body.token;
+    viewerId = viewerLogin.body.user.id;
+
+    const documentsResponse = await request(app)
+      .get("/api/documents")
+      .set("Authorization", `Bearer ${ownerToken}`);
+
+    if (!documentsResponse.body.documents?.length) {
+      throw new Error(
+        "Owner must have at least one uploaded document before running security tests"
+      );
+    }
+
+    documentId = documentsResponse.body.documents[0].id;
+  });
+
+  afterAll(async () => {
+    await pool.end();
+  });
+
+  test("GET /api/auth/me rejects requests without a token", async () => {
     const response = await request(app)
       .get("/api/auth/me");
 
@@ -10,6 +53,40 @@ describe("TrustVault security tests", () => {
 
     expect(response.body).toEqual({
       message: "Authentication required",
+    });
+  });
+
+  test("revoked viewer cannot directly download the document", async () => {
+    const grantResponse = await request(app)
+      .post(`/api/permissions/${documentId}/grant`)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .send({
+        userId: viewerId,
+        permission: "READ",
+      });
+
+    expect(grantResponse.statusCode).toBe(201);
+
+    const allowedDownload = await request(app)
+      .get(`/api/documents/${documentId}/download`)
+      .set("Authorization", `Bearer ${viewerToken}`);
+
+    expect(allowedDownload.statusCode).toBe(200);
+
+    const revokeResponse = await request(app)
+      .delete(`/api/permissions/${documentId}/revoke/${viewerId}`)
+      .set("Authorization", `Bearer ${ownerToken}`);
+
+    expect(revokeResponse.statusCode).toBe(200);
+
+    const blockedDownload = await request(app)
+      .get(`/api/documents/${documentId}/download`)
+      .set("Authorization", `Bearer ${viewerToken}`);
+
+    expect(blockedDownload.statusCode).toBe(404);
+
+    expect(blockedDownload.body).toEqual({
+      message: "Document not found",
     });
   });
 });
