@@ -50,4 +50,27 @@ Automated tests must still be added so removing an authorization check causes th
 
 ### Commit
 Security implementation committed as:
-`security: enforce document-level download authorization`
+`## 2026-11-07 — Audit Chain Verification Hardening
+
+**Prompt / Goal:**  
+Design and verify a tamper-evident audit trail for security-sensitive document actions.
+
+**AI-assisted approach:**  
+The first implementation chained audit events using timestamp and ID ordering and hashed serialized event metadata.
+
+**Problem found during manual verification:**  
+Audit-chain verification failed even though the application had not intentionally modified the stored events. Ordering and JSON serialization were not deterministic enough for reliable hash reconstruction.
+
+**Correction made:**  
+- Added a monotonic `chain_index` to `audit_events`.
+- Added a unique constraint for the chain index.
+- Ordered chain creation and verification by `chain_index`.
+- Added stable serialization with sorted object keys.
+- Used a PostgreSQL advisory transaction lock while creating chained audit events.
+- Re-ran verification after clearing only local development audit data.
+
+**Verification result:**  
+The rebuilt audit chain verified successfully after the correction.
+
+**Lesson:**  
+A hash chain is only useful when event ordering and serialization are deterministic. AI-generated security code must be tested rather than assumed correct.security: enforce document-level download authorization`
