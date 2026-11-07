@@ -1,4 +1,10 @@
+const path = require("path");
+
 const pool = require("../config/db");
+
+const {
+  authorizeDocument,
+} = require("../security/documentAuthorization");
 
 const uploadDocument = async (req, res) => {
   try {
@@ -22,7 +28,14 @@ const uploadDocument = async (req, res) => {
       `INSERT INTO documents
        (owner_id, name, storage_key, mime_type, size_bytes, category)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, owner_id, name, mime_type, size_bytes, category, created_at`,
+       RETURNING
+         id,
+         owner_id,
+         name,
+         mime_type,
+         size_bytes,
+         category,
+         created_at`,
       [
         ownerId,
         originalname,
@@ -45,6 +58,7 @@ const uploadDocument = async (req, res) => {
     });
   }
 };
+
 const listDocuments = async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -86,7 +100,44 @@ const listDocuments = async (req, res) => {
     });
   }
 };
+
+const downloadDocument = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { documentId } = req.params;
+
+    const authorization = await authorizeDocument(
+      userId,
+      documentId,
+      "READ"
+    );
+
+    if (!authorization.allowed) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
+    const document = authorization.document;
+
+    const filePath = path.resolve(
+      __dirname,
+      "../../../uploads",
+      document.storage_key
+    );
+
+    return res.download(filePath, document.name);
+  } catch (error) {
+    console.error("Download document error:", error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
 module.exports = {
   uploadDocument,
   listDocuments,
+  downloadDocument,
 };
