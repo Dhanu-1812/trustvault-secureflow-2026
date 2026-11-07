@@ -83,7 +83,59 @@ const createAuditEvent = async ({
     client.release();
   }
 };
+const verifyAuditChain = async () => {
+  const result = await pool.query(
+    `SELECT
+       id,
+       actor_user_id,
+       document_id,
+       action,
+       outcome,
+       metadata,
+       previous_hash,
+       event_hash,
+       created_at
+     FROM audit_events
+     ORDER BY created_at ASC, id ASC`
+  );
 
+  let previousHash = "GENESIS";
+
+  for (const event of result.rows) {
+    const payload = JSON.stringify({
+      actorUserId: event.actor_user_id,
+      documentId: event.document_id,
+      action: event.action,
+      outcome: event.outcome,
+      metadata: event.metadata || {},
+      previousHash,
+      createdAt: new Date(event.created_at).toISOString(),
+    });
+
+    const expectedHash = crypto
+      .createHash("sha256")
+      .update(payload)
+      .digest("hex");
+
+    if (
+      event.previous_hash !== previousHash ||
+      event.event_hash !== expectedHash
+    ) {
+      return {
+        valid: false,
+        brokenEventId: event.id,
+      };
+    }
+
+    previousHash = event.event_hash;
+  }
+
+  return {
+    valid: true,
+    totalEvents: result.rows.length,
+  };
+};
 module.exports = {
   createAuditEvent,
+  verifyAuditChain,
 };

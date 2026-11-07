@@ -7,6 +7,7 @@ const pool = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const documentRoutes = require("./routes/documentRoutes");
 const permissionRoutes = require("./routes/permissionRoutes");
+const auditRoutes = require("./routes/auditRoutes");
 
 const app = express();
 
@@ -16,7 +17,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/permissions", permissionRoutes);
-
+app.use("/api/audit", auditRoutes);
 app.get("/health", (req, res) => {
   res.json({
     status: "ok",
