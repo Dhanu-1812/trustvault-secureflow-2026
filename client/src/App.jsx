@@ -8,6 +8,7 @@ function App() {
   const [message, setMessage] = useState("");
   const [user, setUser] = useState(null);
   const [documents, setDocuments] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
 const [selectedFile, setSelectedFile] = useState(null);
 const [category, setCategory] = useState("");
 const [uploading, setUploading] = useState(false);
@@ -66,6 +67,21 @@ const handleUpload = async (event) => {
     setMessage(error.message);
   } finally {
     setUploading(false);
+  }
+};
+const handleSearch = async (event) => {
+  event.preventDefault();
+
+  try {
+    setMessage("");
+
+    const data = await apiRequest(
+      `/api/documents/search?q=${encodeURIComponent(searchQuery)}`
+    );
+
+    setDocuments(data.documents || []);
+  } catch (error) {
+    setMessage(error.message);
   }
 };
   const handleDownload = async (doc) => {
@@ -142,6 +158,18 @@ const handleUpload = async (event) => {
     </button>
   </form>
 )}
+<form onSubmit={handleSearch}>
+  <input
+    type="text"
+    placeholder="Search documents..."
+    value={searchQuery}
+    onChange={(event) => setSearchQuery(event.target.value)}
+  />
+
+  <button type="submit">
+    Search
+  </button>
+</form>
           <h3>My Documents</h3>
 
           {documents.length === 0 ? (
