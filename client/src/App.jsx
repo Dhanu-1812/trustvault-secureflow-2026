@@ -8,7 +8,9 @@ function App() {
   const [message, setMessage] = useState("");
   const [user, setUser] = useState(null);
   const [documents, setDocuments] = useState([]);
-
+const [selectedFile, setSelectedFile] = useState(null);
+const [category, setCategory] = useState("");
+const [uploading, setUploading] = useState(false);
   const handleLogin = async (event) => {
     event.preventDefault();
     setMessage("");
@@ -33,7 +35,39 @@ function App() {
       setMessage(error.message);
     }
   };
+const handleUpload = async (event) => {
+  event.preventDefault();
 
+  if (!selectedFile) {
+    setMessage("Please select a file");
+    return;
+  }
+
+  try {
+    setUploading(true);
+    setMessage("");
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    formData.append("category", category);
+
+    await apiRequest("/api/documents/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const documentData = await apiRequest("/api/documents");
+    setDocuments(documentData.documents || []);
+
+    setSelectedFile(null);
+    setCategory("");
+    setMessage("Document uploaded successfully");
+  } catch (error) {
+    setMessage(error.message);
+  } finally {
+    setUploading(false);
+  }
+};
   const handleDownload = async (doc) => {
     try {
       const token = localStorage.getItem("token");
@@ -85,7 +119,29 @@ function App() {
 
           <p>Email: {user.email}</p>
           <p>Role: {user.role}</p>
+{user.role === "OWNER" && (
+  <form onSubmit={handleUpload}>
+    <h3>Upload Document</h3>
 
+    <input
+      type="file"
+      accept=".pdf,.png,.jpg,.jpeg"
+      onChange={(event) => setSelectedFile(event.target.files[0])}
+      required
+    />
+
+    <input
+      type="text"
+      placeholder="Category"
+      value={category}
+      onChange={(event) => setCategory(event.target.value)}
+    />
+
+    <button type="submit" disabled={uploading}>
+      {uploading ? "Uploading..." : "Upload"}
+    </button>
+  </form>
+)}
           <h3>My Documents</h3>
 
           {documents.length === 0 ? (
