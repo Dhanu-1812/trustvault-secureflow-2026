@@ -97,4 +97,26 @@ After permission revocation, the viewer received an empty search result and coul
 Added a test confirming that a revoked viewer cannot discover the document through the search endpoint.
 
 **Lesson:**  
-Authorization must protect metadata discovery as well as document download.
+Authorization must protect metadata discovery as well as document download.## 2026-11-07 — Owner-Only Document Deletion
+
+**Prompt / Goal:**  
+Implement secure document deletion without allowing viewers or permission holders to delete another user's document.
+
+**Security concern:**  
+A malicious user could modify the document ID in a DELETE request and attempt to remove a document they do not own.
+
+**AI-assisted implementation:**  
+- Added a server-side document delete endpoint.
+- Verified the authenticated user's ownership before deletion.
+- Used soft deletion through `deleted_at` instead of immediately removing the database record.
+- Returned a generic `Document not found` response for unauthorized delete attempts to reduce information leakage.
+- Added audit events for successful and denied delete attempts.
+
+**Verification:**  
+A viewer account attempted to delete an owner's document and was denied. The owner successfully deleted a temporary test document, and the deleted document disappeared from authorized document listings.
+
+**Automated test:**  
+Added a security test confirming that a viewer cannot delete an owner's document.
+
+**Lesson:**  
+Authorization must be enforced on destructive operations independently of client-side controls or visible UI permissions.
