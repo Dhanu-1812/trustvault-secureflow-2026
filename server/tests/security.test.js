@@ -61,6 +61,17 @@ test("revoked viewer cannot discover document through search", async () => {
 
   expect(leakedDocument).toBeUndefined();
 });
+test("viewer cannot grant access to owner's document", async () => {
+  const response = await request(app)
+    .post(`/api/permissions/${documentId}/grant`)
+    .set("Authorization", `Bearer ${viewerToken}`)
+    .send({
+      userId: "00000000-0000-0000-0000-000000000001",
+      permission: "READ",
+    });
+
+  expect(response.statusCode).toBe(403);
+});
   afterAll(async () => {
     await pool.end();
   });
