@@ -81,6 +81,13 @@ test("viewer cannot revoke another user's document permission", async () => {
 
   expect(response.statusCode).toBe(403);
 });
+test("viewer cannot access admin audit verification", async () => {
+  const response = await request(app)
+    .get("/api/audit/verify")
+    .set("Authorization", `Bearer ${viewerToken}`);
+
+  expect(response.statusCode).toBe(403);
+});
   afterAll(async () => {
     await pool.end();
   });
