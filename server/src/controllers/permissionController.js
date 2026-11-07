@@ -1,5 +1,9 @@
 const pool = require("../config/db");
 
+const {
+  createAuditEvent,
+} = require("../audit/auditService");
+
 const grantPermission = async (req, res) => {
   try {
     const ownerId = req.user.userId;
@@ -35,6 +39,18 @@ const grantPermission = async (req, res) => {
     const document = documentResult.rows[0];
 
     if (document.owner_id !== ownerId) {
+      await createAuditEvent({
+        actorUserId: ownerId,
+        documentId,
+        action: "PERMISSION_GRANT",
+        outcome: "DENIED",
+        metadata: {
+          targetUserId: userId,
+          requestedPermission: permission,
+          reason: "NOT_DOCUMENT_OWNER",
+        },
+      });
+
       return res.status(403).json({
         message: "Only the document owner can grant access",
       });
@@ -78,9 +94,26 @@ const grantPermission = async (req, res) => {
       `INSERT INTO document_permissions
        (document_id, user_id, permission, granted_by)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, document_id, user_id, permission, granted_by, granted_at`,
+       RETURNING
+         id,
+         document_id,
+         user_id,
+         permission,
+         granted_by,
+         granted_at`,
       [documentId, userId, permission, ownerId]
     );
+
+    await createAuditEvent({
+      actorUserId: ownerId,
+      documentId,
+      action: "PERMISSION_GRANTED",
+      outcome: "SUCCESS",
+      metadata: {
+        targetUserId: userId,
+        permission,
+      },
+    });
 
     return res.status(201).json({
       message: "Permission granted successfully",
@@ -94,6 +127,7 @@ const grantPermission = async (req, res) => {
     });
   }
 };
+
 const revokePermission = async (req, res) => {
   try {
     const ownerId = req.user.userId;
@@ -114,6 +148,17 @@ const revokePermission = async (req, res) => {
     }
 
     if (documentResult.rows[0].owner_id !== ownerId) {
+      await createAuditEvent({
+        actorUserId: ownerId,
+        documentId,
+        action: "PERMISSION_REVOKE",
+        outcome: "DENIED",
+        metadata: {
+          targetUserId: userId,
+          reason: "NOT_DOCUMENT_OWNER",
+        },
+      });
+
       return res.status(403).json({
         message: "Only the document owner can revoke access",
       });
@@ -135,6 +180,16 @@ const revokePermission = async (req, res) => {
       });
     }
 
+    await createAuditEvent({
+      actorUserId: ownerId,
+      documentId,
+      action: "PERMISSION_REVOKED",
+      outcome: "SUCCESS",
+      metadata: {
+        targetUserId: userId,
+      },
+    });
+
     return res.json({
       message: "Permission revoked successfully",
     });
@@ -146,6 +201,7 @@ const revokePermission = async (req, res) => {
     });
   }
 };
+
 module.exports = {
   grantPermission,
   revokePermission,

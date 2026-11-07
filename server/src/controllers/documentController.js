@@ -6,6 +6,10 @@ const {
   authorizeDocument,
 } = require("../security/documentAuthorization");
 
+const {
+  createAuditEvent,
+} = require("../audit/auditService");
+
 const uploadDocument = async (req, res) => {
   try {
     if (!req.file) {
@@ -113,12 +117,33 @@ const downloadDocument = async (req, res) => {
     );
 
     if (!authorization.allowed) {
+      await createAuditEvent({
+        actorUserId: userId,
+        documentId: null,
+        action: "DOCUMENT_DOWNLOAD",
+        outcome: "DENIED",
+        metadata: {
+          attemptedDocumentId: documentId,
+          reason: "NO_ACTIVE_PERMISSION",
+        },
+      });
+
       return res.status(404).json({
         message: "Document not found",
       });
     }
 
     const document = authorization.document;
+
+    await createAuditEvent({
+      actorUserId: userId,
+      documentId: document.id,
+      action: "DOCUMENT_DOWNLOAD",
+      outcome: "SUCCESS",
+      metadata: {
+        fileName: document.name,
+      },
+    });
 
     const filePath = path.resolve(
       __dirname,
