@@ -29,9 +29,7 @@ function App() {
     const restoreSession = async () => {
       const token = localStorage.getItem("token");
 
-      if (!token) {
-        return;
-      }
+      if (!token) return;
 
       try {
         const currentUser = await apiRequest("/api/auth/me");
@@ -187,6 +185,26 @@ function App() {
     }
   };
 
+  const handleDelete = async (doc) => {
+    const confirmed = window.confirm(`Delete "${doc.name}"?`);
+
+    if (!confirmed) return;
+
+    try {
+      setMessage("");
+
+      await apiRequest(`/api/documents/${doc.id}`, {
+        method: "DELETE",
+      });
+
+      await loadDocuments();
+
+      setMessage("Document deleted successfully");
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
   const handleDownload = async (doc) => {
     try {
       const token = localStorage.getItem("token");
@@ -288,9 +306,7 @@ function App() {
                 type="email"
                 placeholder="Viewer email"
                 value={shareEmail}
-                onChange={(event) =>
-                  setShareEmail(event.target.value)
-                }
+                onChange={(event) => setShareEmail(event.target.value)}
                 required
               />
 
@@ -333,9 +349,7 @@ function App() {
                 type="email"
                 placeholder="Viewer email"
                 value={revokeEmail}
-                onChange={(event) =>
-                  setRevokeEmail(event.target.value)
-                }
+                onChange={(event) => setRevokeEmail(event.target.value)}
               />
 
               <button type="button" onClick={handleRevoke}>
@@ -353,9 +367,7 @@ function App() {
               type="text"
               placeholder="Search documents..."
               value={searchQuery}
-              onChange={(event) =>
-                setSearchQuery(event.target.value)
-              }
+              onChange={(event) => setSearchQuery(event.target.value)}
             />
 
             <button type="submit">Search</button>
@@ -374,16 +386,27 @@ function App() {
                   Category: {doc.category || "Uncategorized"}
                 </p>
 
-                <button onClick={() => handleDownload(doc)}>
+                <button type="button" onClick={() => handleDownload(doc)}>
                   Download
                 </button>
+
+                {user.role === "OWNER" && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(doc)}
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             ))
           )}
 
           {message && <p className="message">{message}</p>}
 
-          <button onClick={handleLogout}>Logout</button>
+          <button type="button" onClick={handleLogout}>
+            Logout
+          </button>
         </div>
       </div>
     );
