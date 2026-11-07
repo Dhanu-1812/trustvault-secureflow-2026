@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiRequest, API_URL } from "./api";
 import "./App.css";
 
@@ -6,6 +6,7 @@ function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+
   const [user, setUser] = useState(null);
   const [documents, setDocuments] = useState([]);
 
@@ -18,7 +19,35 @@ function App() {
   const [shareEmail, setShareEmail] = useState("");
   const [sharePermission, setSharePermission] = useState("READ");
   const [shareDocumentId, setShareDocumentId] = useState("");
-const [shareStatus, setShareStatus] = useState("");
+  const [shareStatus, setShareStatus] = useState("");
+
+  const [revokeEmail, setRevokeEmail] = useState("");
+  const [revokeDocumentId, setRevokeDocumentId] = useState("");
+  const [revokeStatus, setRevokeStatus] = useState("");
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        return;
+      }
+
+      try {
+        const currentUser = await apiRequest("/api/auth/me");
+        const documentData = await apiRequest("/api/documents");
+
+        setUser(currentUser.user);
+        setDocuments(documentData.documents || []);
+      } catch {
+        localStorage.removeItem("token");
+        setUser(null);
+      }
+    };
+
+    restoreSession();
+  }, []);
+
   const loadDocuments = async () => {
     const data = await apiRequest("/api/documents");
     setDocuments(data.documents || []);
@@ -100,14 +129,14 @@ const [shareStatus, setShareStatus] = useState("");
 
   const handleShare = async (event) => {
     event.preventDefault();
-setShareStatus("");
+
     if (!shareDocumentId || !shareEmail) {
-      setMessage("Select a document and enter user email");
+      setShareStatus("Select a document and enter user email");
       return;
     }
 
     try {
-      setMessage("");
+      setShareStatus("");
 
       const lookupData = await apiRequest(
         `/api/users/lookup?email=${encodeURIComponent(shareEmail)}`
@@ -121,12 +150,40 @@ setShareStatus("");
         }),
       });
 
+      setShareStatus("Document shared successfully");
       setShareEmail("");
       setSharePermission("READ");
       setShareDocumentId("");
-      setShareStatus("Document shared successfully");
     } catch (error) {
       setShareStatus(error.message);
+    }
+  };
+
+  const handleRevoke = async () => {
+    if (!revokeDocumentId || !revokeEmail) {
+      setRevokeStatus("Select a document and enter user email");
+      return;
+    }
+
+    try {
+      setRevokeStatus("");
+
+      const lookupData = await apiRequest(
+        `/api/users/lookup?email=${encodeURIComponent(revokeEmail)}`
+      );
+
+      await apiRequest(
+        `/api/permissions/${revokeDocumentId}/revoke/${lookupData.user.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      setRevokeStatus("Access revoked successfully");
+      setRevokeEmail("");
+      setRevokeDocumentId("");
+    } catch (error) {
+      setRevokeStatus(error.message);
     }
   };
 
@@ -231,7 +288,9 @@ setShareStatus("");
                 type="email"
                 placeholder="Viewer email"
                 value={shareEmail}
-                onChange={(event) => setShareEmail(event.target.value)}
+                onChange={(event) =>
+                  setShareEmail(event.target.value)
+                }
                 required
               />
 
@@ -246,8 +305,45 @@ setShareStatus("");
               </select>
 
               <button type="submit">Share</button>
+
               {shareStatus && <p>{shareStatus}</p>}
             </form>
+          )}
+
+          {user.role === "OWNER" && (
+            <div>
+              <h3>Revoke Access</h3>
+
+              <select
+                value={revokeDocumentId}
+                onChange={(event) =>
+                  setRevokeDocumentId(event.target.value)
+                }
+              >
+                <option value="">Select document</option>
+
+                {documents.map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.name}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="email"
+                placeholder="Viewer email"
+                value={revokeEmail}
+                onChange={(event) =>
+                  setRevokeEmail(event.target.value)
+                }
+              />
+
+              <button type="button" onClick={handleRevoke}>
+                Revoke Access
+              </button>
+
+              {revokeStatus && <p>{revokeStatus}</p>}
+            </div>
           )}
 
           <form onSubmit={handleSearch}>
@@ -257,7 +353,9 @@ setShareStatus("");
               type="text"
               placeholder="Search documents..."
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) =>
+                setSearchQuery(event.target.value)
+              }
             />
 
             <button type="submit">Search</button>
@@ -271,7 +369,10 @@ setShareStatus("");
             documents.map((doc) => (
               <div key={doc.id}>
                 <strong>{doc.name}</strong>
-                <p>Category: {doc.category || "Uncategorized"}</p>
+
+                <p>
+                  Category: {doc.category || "Uncategorized"}
+                </p>
 
                 <button onClick={() => handleDownload(doc)}>
                   Download
