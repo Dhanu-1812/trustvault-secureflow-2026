@@ -73,4 +73,28 @@ Audit-chain verification failed even though the application had not intentionall
 The rebuilt audit chain verified successfully after the correction.
 
 **Lesson:**  
-A hash chain is only useful when event ordering and serialization are deterministic. AI-generated security code must be tested rather than assumed correct.security: enforce document-level download authorization`
+A hash chain is only useful when event ordering and serialization are deterministic. AI-generated security code must be tested rather than assumed correct.security: enforce document-level download authorization`## 2026-11-07 — Authorization-Aware Document Search
+
+**Prompt / Goal:**  
+Add document search without leaking document metadata to users who do not currently have access.
+
+**AI-assisted approach:**  
+The search query was designed to return only documents owned by the authenticated user or documents with an active, non-revoked permission.
+
+**Security concern considered:**  
+Blocking direct download alone is not enough. Search results can still leak document IDs, names, categories, and metadata if authorization filtering is missing.
+
+**Implementation:**  
+- Applied authorization filtering inside the server-side SQL query.
+- Excluded revoked permissions.
+- Kept deleted documents out of search results.
+- Tested with an owner and a revoked viewer account.
+
+**Verification result:**  
+After permission revocation, the viewer received an empty search result and could no longer discover the protected document.
+
+**Automated test:**  
+Added a test confirming that a revoked viewer cannot discover the document through the search endpoint.
+
+**Lesson:**  
+Authorization must protect metadata discovery as well as document download.
