@@ -45,7 +45,48 @@ const uploadDocument = async (req, res) => {
     });
   }
 };
+const listDocuments = async (req, res) => {
+  try {
+    const userId = req.user.userId;
 
+    const result = await pool.query(
+      `
+      SELECT DISTINCT
+        d.id,
+        d.owner_id,
+        d.name,
+        d.mime_type,
+        d.size_bytes,
+        d.category,
+        d.created_at
+      FROM documents d
+      LEFT JOIN document_permissions p
+        ON p.document_id = d.id
+        AND p.user_id = $1
+        AND p.revoked_at IS NULL
+      WHERE
+        d.deleted_at IS NULL
+        AND (
+          d.owner_id = $1
+          OR p.user_id = $1
+        )
+      ORDER BY d.created_at DESC
+      `,
+      [userId]
+    );
+
+    return res.json({
+      documents: result.rows,
+    });
+  } catch (error) {
+    console.error("List documents error:", error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
 module.exports = {
   uploadDocument,
+  listDocuments,
 };
