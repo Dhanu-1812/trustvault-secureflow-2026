@@ -8,9 +8,9 @@ const authRoutes = require("./routes/authRoutes");
 const documentRoutes = require("./routes/documentRoutes");
 const permissionRoutes = require("./routes/permissionRoutes");
 const auditRoutes = require("./routes/auditRoutes");
-
+const helmet = require("helmet");
 const app = express();
-
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
