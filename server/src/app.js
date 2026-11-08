@@ -52,6 +52,7 @@ app.get("/db-health", async (req, res) => {
       time: result.rows[0].now,
     });
   } catch (error) {
+    console.error("DB health error:", error.message);
     res.status(500).json({
       status: "error",
       database: "not connected",
