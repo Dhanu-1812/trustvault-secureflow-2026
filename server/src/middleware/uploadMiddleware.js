@@ -1,25 +1,6 @@
 const multer = require("multer");
-const path = require("path");
-const crypto = require("crypto");
 
-const uploadDirectory = path.resolve(
-  __dirname,
-  "../../../uploads"
-);
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDirectory);
-  },
-
-  filename: (req, file, cb) => {
-    const safeName =
-      crypto.randomUUID() +
-      path.extname(file.originalname).toLowerCase();
-
-    cb(null, safeName);
-  },
-});
+const storage = multer.memoryStorage();
 
 const allowedTypes = [
   "application/pdf",
@@ -27,12 +8,14 @@ const allowedTypes = [
   "image/jpeg",
 ];
 
-const fileFilter = (req, file, cb) => {
+const fileFilter = (req, file, callback) => {
   if (!allowedTypes.includes(file.mimetype)) {
-    return cb(new Error("Unsupported file type"));
+    return callback(
+      new Error("Only PDF, PNG, and JPEG files are allowed")
+    );
   }
 
-  cb(null, true);
+  callback(null, true);
 };
 
 const upload = multer({

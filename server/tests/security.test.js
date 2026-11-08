@@ -1,4 +1,11 @@
 const request = require("supertest");
+jest.mock("../src/services/storageService", () => ({
+  uploadToStorage: jest.fn().mockResolvedValue({}),
+  downloadFromStorage: jest
+    .fn()
+    .mockResolvedValue(Buffer.from("test-file")),
+  deleteFromStorage: jest.fn().mockResolvedValue({}),
+}));
 const app = require("../src/app");
 const pool = require("../src/config/db");
 

@@ -1,51 +1,54 @@
 const path = require("path");
-
+const { randomUUID } = require("crypto");
 const pool = require("../config/db");
 
 const {
   authorizeDocument,
 } = require("../security/documentAuthorization");
+const { createAuditEvent } = require("../audit/auditService");
 
 const {
-  createAuditEvent,
-} = require("../audit/auditService");
+  uploadToStorage,
+  downloadFromStorage,
+  deleteFromStorage,
+} = require("../services/storageService");
 
 const uploadDocument = async (req, res) => {
+  let storageKey = null;
+
   try {
     if (!req.file) {
       return res.status(400).json({
-        message: "Document file is required",
+        message: "File is required",
       });
     }
 
-    const {
-      originalname,
-      filename,
-      mimetype,
-      size,
-    } = req.file;
+    const userId = req.user.userId;
+    const category = req.body.category?.trim() || null;
 
-    const ownerId = req.user.userId;
-    const category = req.body.category || null;
+    const extension = path
+      .extname(req.file.originalname)
+      .toLowerCase();
+
+    storageKey = `${userId}/${randomUUID()}${extension}`;
+
+    await uploadToStorage({
+      storageKey,
+      fileBuffer: req.file.buffer,
+      mimeType: req.file.mimetype,
+    });
 
     const result = await pool.query(
       `INSERT INTO documents
        (owner_id, name, storage_key, mime_type, size_bytes, category)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING
-         id,
-         owner_id,
-         name,
-         mime_type,
-         size_bytes,
-         category,
-         created_at`,
+       RETURNING *`,
       [
-        ownerId,
-        originalname,
-        filename,
-        mimetype,
-        size,
+        userId,
+        req.file.originalname,
+        storageKey,
+        req.file.mimetype,
+        req.file.size,
         category,
       ]
     );
@@ -55,10 +58,21 @@ const uploadDocument = async (req, res) => {
       document: result.rows[0],
     });
   } catch (error) {
-    console.error("Document upload error:", error);
+    if (storageKey) {
+      try {
+        await deleteFromStorage(storageKey);
+      } catch (cleanupError) {
+        console.error("Storage cleanup error:", cleanupError);
+      }
+    }
+
+    console.error("Upload document error message:", error?.message);
+console.error("Upload document error name:", error?.name);
+console.error("Upload document error status:", error?.statusCode || error?.status);
+console.error("Upload document error details:", error);
 
     return res.status(500).json({
-      message: "Internal server error",
+      message: "Document upload failed",
     });
   }
 };
@@ -135,28 +149,36 @@ const downloadDocument = async (req, res) => {
 
     const document = authorization.document;
 
+    const fileBuffer = await downloadFromStorage(
+      document.storage_key
+    );
+
     await createAuditEvent({
       actorUserId: userId,
       documentId: document.id,
       action: "DOCUMENT_DOWNLOAD",
       outcome: "SUCCESS",
       metadata: {
-        fileName: document.name,
+        filename: document.name,
       },
     });
 
-    const filePath = path.resolve(
-      __dirname,
-      "../../../uploads",
-      document.storage_key
+    res.setHeader(
+      "Content-Type",
+      document.mime_type || "application/octet-stream"
     );
 
-    return res.download(filePath, document.name);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename*=UTF-8''${encodeURIComponent(document.name)}`
+    );
+
+    return res.send(fileBuffer);
   } catch (error) {
     console.error("Download document error:", error);
 
     return res.status(500).json({
-      message: "Internal server error",
+      message: "Document download failed",
     });
   }
 };
@@ -237,6 +259,8 @@ const deleteDocument = async (req, res) => {
       });
     }
 
+    const document = authorization.document;
+await deleteFromStorage(document.storage_key);
     await pool.query(
       `UPDATE documents
        SET deleted_at = NOW()
