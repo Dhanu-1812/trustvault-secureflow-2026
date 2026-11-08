@@ -78,7 +78,8 @@ Implemented. Automated security test still required.
 ---
 
 ## T05 — Public File Storage Exposure
-
+Mitigation: Documents are stored in a private Supabase Storage bucket. Direct public access is disabled. Downloads are served only through the authenticated backend after document-level authorization checks.
+Status: Implemented and production-tested.
 ### Attack
 A user attempts to bypass the API and access uploaded files directly.
 
@@ -107,4 +108,34 @@ An attacker uploads an unsupported or oversized file.
 - Add malware scanning or quarantine strategy.
 
 ### Status
-Partially implemented.
+Partially implemented.### T07 — Unauthorized Document Discovery Through Search
+**Threat:**  
+A user without active permission could discover document metadata through search results.
+
+**Impact:**  
+Document names, categories, IDs, or metadata could leak even when direct download is blocked.
+
+**Mitigation:**  
+Search queries are filtered server-side so results include only documents owned by the authenticated user or documents with an active permission.
+
+**Verification:**  
+Automated test confirms that a viewer with revoked access cannot discover the document through the search endpoint.
+
+**Status:** Implemented and tested.
+
+---
+
+### T08 — Unauthorized Document Deletion
+**Threat:**  
+A viewer or non-owner could attempt to delete another user's document by changing the document ID in the request.
+
+**Impact:**  
+Unauthorized data destruction or denial of access.
+
+**Mitigation:**  
+Document deletion is restricted to the document owner. Unauthorized deletion attempts return a generic `Document not found` response to reduce information leakage and are recorded in the audit trail.
+
+**Verification:**  
+Manual verification and automated test confirm that a viewer cannot delete an owner's document.
+
+**Status:** Implemented and tested.
