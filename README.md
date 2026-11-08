@@ -74,3 +74,14 @@ The test suite verifies important security scenarios including:
 - Invalid document UUIDs are rejected safely.
 - Protected authentication routes reject missing tokens.
 - Revoked VIEWER access is denied on direct document download.
+## Demo Accounts
+
+Use these accounts on the live deployment:
+
+| Role | Email | Password |
+|---|---|---|
+| OWNER | owner1@example.com | TestPass@123 |
+| VIEWER | viewer1@example.com | ViewerPass@123 |
+| ADMIN | admin1@example.com | AdminPass@123 |
+
+These accounts are intended only for hackathon evaluation and contain demo data.
